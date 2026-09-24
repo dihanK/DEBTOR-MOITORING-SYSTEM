@@ -419,15 +419,28 @@ function renderDashboard(){
  document.getElementById("mCredit").textContent=money(total);
  document.getElementById("mPaid").textContent=money(p);
  document.getElementById("mOutstanding").textContent=money(out);
- // Use the same workflow status for the KPI cards and the pipeline.
- // This prevents one case from being counted in multiple workflow stages.
- document.getElementById("mDispatch").textContent=cases.filter(c=>status(c)==="CR Pending Dispatch").length;
- document.getElementById("mSent").textContent=cases.filter(c=>status(c)==="Sent to Finance").length;
- document.getElementById("mPending").textContent=cases.filter(c=>status(c)==="Payment Pending").length;
+
+ // SINGLE SOURCE OF TRUTH: calculate workflow stages once, then use these
+ // exact same counts for both the KPI cards and the pipeline.
+ const counts={
+   "CR Pending Dispatch":0,
+   "Sent to Finance":0,
+   "Finance Processing":0,
+   "Payment Pending":0,
+   "Completed":0
+ };
+ cases.forEach(c=>{
+   const s=status(c);
+   if(Object.prototype.hasOwnProperty.call(counts,s)) counts[s]++;
+ });
+
+ document.getElementById("mDispatch").textContent=counts["CR Pending Dispatch"];
+ document.getElementById("mSent").textContent=counts["Sent to Finance"];
+ document.getElementById("mPending").textContent=counts["Payment Pending"];
  document.getElementById("mAttention").textContent=getAttention().length;
- const counts={};cases.forEach(c=>{const s=status(c);counts[s]=(counts[s]||0)+1});
+
  const pipeline=[["CR Pending Dispatch","amber"],["Sent to Finance","blue"],["Finance Processing","amber"],["Payment Pending","red"],["Completed","green"]];
- document.getElementById("pipeline").innerHTML=pipeline.map(([s])=>`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${s}</span><b>${counts[s]||0}</b></div><div class="progress"><span style="width:${cases.length?((counts[s]||0)/cases.length*100):0}%"></span></div></div>`).join("");
+ document.getElementById("pipeline").innerHTML=pipeline.map(([s])=>`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${s}</span><b>${counts[s]}</b></div><div class="progress"><span style="width:${cases.length?(counts[s]/cases.length*100):0}%"></span></div></div>`).join("");
  const att=getAttention().slice(0,5);
  document.getElementById("dashAttention").innerHTML=att.length?att.map(a=>`<div class="alert"><b>${esc(rowVal(a.c,"Order No"))}</b> — ${esc(a.issue)}<br><small>${esc(rowVal(a.c,"Name"))} • ${a.days} day(s)</small></div>`).join(""):`<div class="empty">No attention items.</div>`;
  document.getElementById("recentBody").innerHTML=cases.slice(-8).reverse().map(c=>`<tr><td>${esc(rowVal(c,"Order No"))}<br><small>${esc(rowVal(c,"Serial No"))}</small></td><td>${esc(rowVal(c,"Name"))}</td><td>${esc(rowVal(c,"Category"))}</td><td>${esc(rowVal(c,"FINANCE COMPANY"))}</td><td>${badge(status(c))}</td><td>${badge(rowVal(c,"PAYMENT STATUS"))}</td><td><button class="btn small" onclick="openCaseModal('${esc(c.__id)}')">Edit</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No cases.</td></tr>`;
