@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debtor Management System - Credit Sales Bikes</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--text:#17202a;--muted:#6b7280;--primary:#1f4e79;--primary2:#173a5c;--green:#198754;--amber:#f59e0b;--red:#dc3545;--border:#e5e7eb;--shadow:0 8px 24px rgba(0,0,0,.07)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.app{display:flex;min-height:100vh}
+.sidebar{width:245px;background:#13263a;color:#fff;padding:20px 14px;position:fixed;inset:0 auto 0 0;z-index:10}
+.brand{font-size:20px;font-weight:700;padding:10px 12px 24px}
+.brand small{display:block;font-size:11px;font-weight:400;color:#b8c8d8;margin-top:5px}
+.nav button{width:100%;border:0;background:transparent;color:#dce7f0;text-align:left;padding:12px;border-radius:8px;margin:3px 0}
+.nav button:hover,.nav button.active{background:#1f4e79;color:#fff}
+.main{margin-left:245px;width:calc(100% - 245px);padding:24px}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.topbar h1{margin:0;font-size:27px}
+.topbar p{margin:5px 0 0;color:var(--muted)}
+.page{display:none}.page.active{display:block}
+.grid{display:grid;gap:16px}
+.cards{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;box-shadow:var(--shadow)}
+.metric{font-size:28px;font-weight:700;margin:8px 0}.label{font-size:13px;color:var(--muted)}
+.metric.green{color:var(--green)}.metric.red{color:var(--red)}.metric.amber{color:#b45309}
+.section-grid{grid-template-columns:1.4fr 1fr;margin-top:18px}
+.card h3{margin:0 0 14px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+input,select,textarea{border:1px solid #cfd6df;border-radius:7px;padding:10px;background:#fff;color:#111827}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(31,78,121,.15);border-color:var(--primary)}
+.btn{border:0;border-radius:7px;padding:10px 14px;background:var(--primary);color:#fff}
+.btn:hover{background:var(--primary2)}
+.btn.secondary{background:#eef2f7;color:#1f2937}.btn.success{background:var(--green)}.btn.danger{background:var(--red)}
+.btn.small{padding:7px 10px;font-size:12px}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{padding:11px 10px;border-bottom:1px solid var(--border);text-align:left;font-size:13px;vertical-align:top}
+th{background:#f8fafc;color:#475569;font-weight:700}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+.badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.badge.green{background:#dcfce7;color:#166534}.badge.amber{background:#fef3c7;color:#92400e}.badge.red{background:#fee2e2;color:#991b1b}.badge.blue{background:#dbeafe;color:#1e40af}.badge.gray{background:#e5e7eb;color:#374151}
+.progress{height:8px;background:#e5e7eb;border-radius:20px;overflow:hidden}.progress span{display:block;height:100%;background:var(--primary)}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.field label{display:block;font-size:12px;color:#64748b;margin-bottom:5px}.field input,.field select,.field textarea{width:100%}
+.field.full{grid-column:1/-1}.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:30}.modal.show{display:flex}
+.modal-box{background:#fff;border-radius:12px;width:min(1000px,100%);max-height:90vh;overflow:auto;padding:22px}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.modal-head h2{margin:0}
+.close{border:0;background:#f1f5f9;border-radius:50%;width:34px;height:34px}
+.actions{display:flex;gap:7px;justify-content:flex-end;margin-top:18px}
+.notice{padding:12px;border-radius:8px;background:#eef6ff;color:#164e75;font-size:13px;margin-bottom:14px}
+.alert{padding:12px;border-radius:8px;background:#fff7ed;color:#9a3412;margin-bottom:10px}
+.empty{text-align:center;padding:30px;color:#6b7280}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.kpi{padding:14px;border:1px solid var(--border);border-radius:8px;background:#fafafa}.kpi strong{display:block;font-size:21px;margin-top:5px}
+.search{min-width:250px}
+.file-label{display:inline-flex;align-items:center}
+@media(max-width:1100px){.cards{grid-template-columns:repeat(2,1fr)}.section-grid,.form-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.sidebar{position:static;width:100%;height:auto}.app{display:block}.main{margin:0;width:100%;padding:14px}.cards{grid-template-columns:1fr}.nav{display:grid;grid-template-columns:1fr 1fr}.topbar{display:block}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">Debtor Management System<small>Credit Sales Bikes • SLMO</small></div>
+  <div class="nav">
+    <button class="active" data-page="dashboard">Dashboard</button>
+    <button data-page="cases">Credit Sale Cases</button>
+    <button data-page="attention">Attention Required</button>
+    <button data-page="finance">Finance Companies</button>
+    <button data-page="reports">Reports</button>
+    <button data-page="settings">Settings</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div><h1 id="pageTitle">Dashboard</h1><p id="pageSub">Track CR movement, finance processing and credit payments.</p></div>
+    <div><span class="badge blue" id="syncBadge">Excel: Loading…</span></div>
+  </div>
+
+  <section id="dashboard" class="page active">
+    <div class="grid cards">
+      <div class="card"><div class="label">Total Credit Sales</div><div class="metric" id="mCases">0</div><div class="label">tracked cases</div></div>
+      <div class="card"><div class="label">Total Credit Amount</div><div class="metric" id="mCredit">Rs. 0</div></div>
+      <div class="card"><div class="label">Payment Received</div><div class="metric green" id="mPaid">Rs. 0</div></div>
+      <div class="card"><div class="label">Outstanding</div><div class="metric red" id="mOutstanding">Rs. 0</div></div>
+      <div class="card"><div class="label">CR Pending Dispatch</div><div class="metric amber" id="mDispatch">0</div></div>
+      <div class="card"><div class="label">Sent to Finance</div><div class="metric" id="mSent">0</div></div>
+      <div class="card"><div class="label">Payment Pending</div><div class="metric amber" id="mPending">0</div></div>
+      <div class="card"><div class="label">Overdue / Attention</div><div class="metric red" id="mAttention">0</div></div>
+    </div>
+
+    <div class="grid section-grid">
+      <div class="card">
+        <h3>Current Case Pipeline</h3>
+        <div id="pipeline"></div>
+      </div>
+      <div class="card">
+        <h3>Latest Attention Required</h3>
+        <div id="dashAttention"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Recent Credit-Sale Cases</h3>
+      <div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Bike</th><th>Finance</th><th>CR Status</th><th>Payment</th><th>Action</th></tr></thead><tbody id="recentBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="cases" class="page">
+    <div class="card">
+      <div class="toolbar">
+        <input class="search" id="caseSearch" placeholder="Search customer, chassis, order, CR..." oninput="renderCases()">
+        <select id="caseStatus" onchange="renderCases()"><option value="">All Statuses</option><option>CR Pending Dispatch</option><option>Sent to Finance</option><option>Finance Processing</option><option>Payment Pending</option><option>Payment Received</option><option>Completed</option></select>
+        <select id="caseFinance" onchange="renderCases()"><option value="">All Finance Companies</option></select>
+        <button class="btn secondary" onclick="exportCSV()">Export CSV</button>
+        <label class="btn secondary file-label">Import CSV<input type="file" id="csvFile" accept=".csv" style="display:none" onchange="importCSV(event)"></label>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Order / Chassis</th><th>Customer</th><th>Bike</th><th>Finance</th><th>CR</th><th>Amount</th><th>Status</th><th>Aging</th><th>Actions</th></tr></thead><tbody id="casesBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="attention" class="page">
+    <div class="card">
+      <div class="toolbar"><input class="search" id="attentionSearch" placeholder="Search..." oninput="renderAttention()"><select id="attentionType" onchange="renderAttention()"><option value="">All Attention</option><option>CR not dispatched</option><option>Finance receipt not confirmed</option><option>Invoice missing</option><option>Correction required</option><option>Payment overdue</option></select></div>
+      <div class="table-wrap"><table><thead><tr><th>Case</th><th>Customer</th><th>Issue</th><th>Days</th><th>Finance</th><th>Action</th></tr></thead><tbody id="attentionBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="finance" class="page">
+    <div class="grid cards" id="financeCards"></div>
+    <div class="card" style="margin-top:18px"><h3>Finance Company Monitoring</h3><div class="table-wrap"><table><thead><tr><th>Finance Company</th><th>Cases</th><th>Credit Amount</th><th>Sent</th><th>Processing</th><th>Payment Pending</th><th>Paid</th><th>Outstanding</th></tr></thead><tbody id="financeBody"></tbody></table></div></div>
+  </section>
+
+  <section id="reports" class="page">
+    <div class="card">
+      <h3>Reports</h3>
+      <div class="toolbar">
+        <select id="reportType"><option value="all">All Cases</option><option value="cr">CR Status Report</option><option value="finance">Finance Submission Report</option><option value="payment">Payment Pending Report</option><option value="outstanding">Outstanding Report</option><option value="aging">Aging Report</option><option value="notification">Shop Notification Report</option></select>
+        <button class="btn" onclick="generateReport()">Generate</button>
+        <button class="btn secondary" onclick="printReport()">Print</button>
+      </div>
+      <div id="reportOutput"></div>
+    </div>
+  </section>
+
+  <section id="settings" class="page">
+    <div class="card">
+      <h3>System Settings</h3>
+      <p class="label">The dashboard reads <b>credit-sales-bike.xlsx</b> from the same GitHub repository. Edits are written back to the Excel file through the GitHub Contents API.</p>
+      <div class="kpis" style="margin-top:16px">
+        <div class="kpi">Cases stored<strong id="settingCases">0</strong></div>
+        <div class="kpi">Finance companies<strong id="settingFinance">0</strong></div>
+        <div class="kpi">Storage<strong>Browser Local Storage</strong></div>
+      </div>
+      <div class="actions"><button class="btn danger" onclick="resetData()">Reset Demo Data</button></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<div class="modal" id="caseModal">
+ <div class="modal-box">
+  <div class="modal-head"><h2 id="modalTitle">Edit Excel Record</h2><button class="close" onclick="closeCaseModal()">×</button></div>
+  <div class="notice">Changes are saved directly to the <b>Credit Sales</b> sheet in <b>credit-sales-bike.xlsx</b> on GitHub.</div>
+  <form id="caseForm" onsubmit="saveCase(event)">
+   <input type="hidden" id="editId">
+   <div class="form-grid" id="excelFormFields"></div>
+   <div class="actions"><button type="button" class="btn secondary" onclick="closeCaseModal()">Cancel</button><button class="btn" type="submit">Save to Excel</button></div>
+  </form>
+ </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+const EXCEL_SHEET="Credit Sales";
+const DEFAULT_OWNER="dihanK";
+const DEFAULT_BRANCH="main";
+const DEFAULT_PATH="credit-sales-bike.xlsx";
+
+let cases=[];
+let excelHeaders=[];
+let workbook=null;
+let githubSha=null;
+
+const fieldDefs=[
+ ["Area","text"],["District","text"],["Branch Code","text"],["Branch Name","text"],
+ ["Order No","text"],["Serial No","text"],["Category","text"],["Customer No","text"],
+ ["Name","text"],["Sales Date","date"],["Period","number"],["Due Date","date"],
+ ["8/5/26","date"],["Arrears Days As@ 2026.08.03","number"],[" Total Amount ","number"],
+ [" Open Amount ","number"],["SLMO - REMARK","text"],["FINANCE COMPANY","text"],
+ ["CR STATUS","text"],["PAYMENT STATUS","text"]
+];
+
+function money(n){return "Rs. "+Number(n||0).toLocaleString("en-LK",{minimumFractionDigits:0,maximumFractionDigits:2});}
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+function daysSince(date){if(!date)return 0;const a=new Date(date+"T00:00:00"),b=new Date();return Math.max(0,Math.floor((b-a)/86400000));}
+function rowVal(c,name){return c[name] ?? c[name.trim()] ?? "";}
+
+function status(c){
+ const s=String(rowVal(c,"CR STATUS")).trim().toUpperCase();
+ const p=String(rowVal(c,"PAYMENT STATUS")).trim().toUpperCase();
+ if(p==="SETTLED") return "Completed";
+ if(/CORRECTION/.test(s)) return "Finance Processing";
+ if(/SFL|FINANCE/.test(s)) return "Sent to Finance";
+ if(/SHOP|PENDING|NOT RECEIVE|RECEIVE/.test(s)) return "CR Pending Dispatch";
+ return s || "Unknown";
+}
+function badge(s){
+ let cls="gray";
+ if(/COMPLETED|SETTLED|RECEIVED|ACCEPTED/.test(String(s).toUpperCase()))cls="green";
+ else if(/PENDING|PROCESSING|SHOP/.test(String(s).toUpperCase()))cls="amber";
+ else if(/OVERDUE|CORRECTION|REQUIRED|NOT SETTLED/.test(String(s).toUpperCase()))cls="red";
+ else if(/SENT/.test(String(s).toUpperCase()))cls="blue";
+ return `<span class="badge ${cls}">${esc(s)}</span>`;
+}
+function amount(c,name){return Number(rowVal(c,name)||0);}
+function outstanding(c){return amount(c," Open Amount ");}
+function paid(c){return Math.max(0,amount(c," Total Amount ")-outstanding(c));}
+
+function githubConfig(){
+ return {
+   owner:(document.getElementById("ghOwner")?.value||DEFAULT_OWNER).trim(),
+   repo:(document.getElementById("ghRepo")?.value||"").trim(),
+   branch:(document.getElementById("ghBranch")?.value||DEFAULT_BRANCH).trim(),
+   path:(document.getElementById("ghPath")?.value||DEFAULT_PATH).trim(),
+   token:(document.getElementById("ghToken")?.value||"").trim()
+ };
+}
+function rawExcelUrl(){
+ const c=githubConfig();
+ return c.repo ? `https://raw.githubusercontent.com/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/${encodeURIComponent(c.branch)}/${c.path.split("/").map(encodeURIComponent).join("/")}` : DEFAULT_PATH;
+}
+function setSync(text, cls="blue"){
+ const b=document.getElementById("syncBadge"); if(b){b.className="badge "+cls;b.textContent=text;}
+}
+
+async function loadExcel(){
+ setSync("Excel: Loading…","blue");
+ try{
+   const response=await fetch(rawExcelUrl()+"?t="+Date.now(),{cache:"no-store"});
+   if(!response.ok) throw new Error("Excel file could not be loaded. Check repository, branch and path.");
+   const ab=await response.arrayBuffer();
+   workbook=XLSX.read(ab,{type:"array",cellDates:true});
+   const ws=workbook.Sheets[EXCEL_SHEET];
+   if(!ws) throw new Error(`Sheet "${EXCEL_SHEET}" was not found.`);
+   const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:false});
+   excelHeaders=XLSX.utils.sheet_to_json(ws,{header:1,defval:""})[0]||[];
+   cases=rows.map((r,i)=>({...r,__row:i+2,__id:String(r["Order No"]||r["Serial No"]||i+2)}));
+   setSync(`Excel: ${cases.length} records loaded`,"green");
+   populateFinanceFilters(); renderAll();
+ }catch(e){
+   console.error(e); setSync("Excel: Load failed","red");
+   document.getElementById("recentBody").innerHTML=`<tr><td colspan="7" class="empty">${esc(e.message)}</td></tr>`;
+   alert(e.message);
+ }
+}
+async function githubRequest(url,options={}){
+ const c=githubConfig();
+ if(!c.token) throw new Error("Enter a GitHub token in Settings first.");
+ options.headers={...(options.headers||{}),Authorization:`Bearer ${c.token}`,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
+ return fetch(url,options);
+}
+async function testGitHubConnection(){
+ try{
+   const c=githubConfig();
+   if(!c.repo) throw new Error("Enter the GitHub repository name.");
+   const r=await githubRequest(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${c.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(c.branch)}`);
+   if(!r.ok) throw new Error(`GitHub returned ${r.status}. Check token permissions, repository, branch and file path.`);
+   const j=await r.json(); githubSha=j.sha;
+   alert("GitHub connection successful. The Excel file is writable.");
+ }catch(e){alert(e.message);}
+}
+function toDateInput(v){
+ if(!v)return "";
+ if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+ const s=String(v);
+ const d=new Date(s);
+ return isNaN(d) ? s.slice(0,10) : d.toISOString().slice(0,10);
+}
+function renderForm(c){
+ const wrap=document.getElementById("excelFormFields");
+ wrap.innerHTML=fieldDefs.map(([name,type],i)=>{
+   const raw=rowVal(c,name);
+   let value=raw;
+   if(type==="date") value=toDateInput(raw);
+   const safe=esc(value);
+   const id="excelField_"+i;
+   return `<div class="field"><label>${esc(name.trim())}</label><input id="${id}" data-col="${esc(name)}" type="${type}" value="${safe}"></div>`;
+ }).join("");
+}
+function openCaseModal(id){
+ const c=cases.find(x=>String(x.__id)===String(id));
+ if(!c)return;
+ document.getElementById("editId").value=c.__id;
+ document.getElementById("modalTitle").textContent=`Edit: ${c["Order No"]||c["Serial No"]||"Record"}`;
+ renderForm(c);
+ document.getElementById("caseModal").classList.add("show");
+}
+function closeCaseModal(){document.getElementById("caseModal").classList.remove("show");}
+
+async function saveCase(e){
+ e.preventDefault();
+ const id=document.getElementById("editId").value;
+ const c=cases.find(x=>String(x.__id)===String(id));
+ if(!c)return;
+ const original={...c};
+ document.querySelectorAll("#excelFormFields input").forEach(input=>{
+   const col=input.dataset.col;
+   let v=input.value;
+   if(input.type==="number") v=v===""?"":Number(v);
+   c[col]=v;
+ });
+ try{
+   setSync("Excel: Saving…","amber");
+   await updateExcelOnGitHub(c);
+   closeCaseModal();
+   renderAll();
+   setSync("Excel: Saved to GitHub","green");
+   alert("Record updated successfully in credit-sales-bike.xlsx on GitHub.");
+ }catch(err){
+   Object.keys(original).forEach(k=>c[k]=original[k]);
+   setSync("Excel: Save failed","red");
+   alert("Could not update Excel.\n\n"+err.message);
+ }
+}
+
+function rowToArray(row){
+ return excelHeaders.map(h=>row[h]??"");
+}
+function makeWorkbookFromCases(){
+ const clean=cases.map(c=>{
+   const o={};
+   excelHeaders.forEach(h=>o[h]=c[h]??"");
+   return o;
+ });
+ const ws=XLSX.utils.json_to_sheet(clean,{header:excelHeaders});
+ const wb2=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb2,ws,EXCEL_SHEET);
+ // Preserve the other sheets by copying them from the original workbook.
+ for(const s of workbook.SheetNames){
+   if(s===EXCEL_SHEET)continue;
+   XLSX.utils.book_append_sheet(wb2,workbook.Sheets[s],s);
+ }
+ return wb2;
+}
+function arrayBufferToBase64(buf){
+ let binary="";
+ const bytes=new Uint8Array(buf);
+ const chunk=0x8000;
+ for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+ return btoa(binary);
+}
+async function updateExcelOnGitHub(changedCase){
+ const c=githubConfig();
+ if(!c.repo) throw new Error("Enter the GitHub repository name in Settings.");
+ if(!c.token) throw new Error("Enter a GitHub fine-grained token with Contents: Read and write.");
+ // Get current file SHA immediately before writing to avoid overwriting a newer commit.
+ const url=`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${c.path.split("/").map(encodeURIComponent).join("/")}`;
+ const get=await githubRequest(url+`?ref=${encodeURIComponent(c.branch)}`);
+ if(!get.ok) throw new Error(`Cannot read GitHub file (${get.status}).`);
+ const info=await get.json();
+ githubSha=info.sha;
+ const bytes=XLSX.write(makeWorkbookFromCases(),{bookType:"xlsx",type:"array"});
+ const body={
+   message:`Update credit sale ${changedCase["Order No"]||changedCase["Serial No"]||""}`,
+   content:arrayBufferToBase64(bytes),
+   sha:githubSha,
+   branch:c.branch
+ };
+ const put=await githubRequest(url,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+ if(!put.ok){
+   const t=await put.text();
+   throw new Error(`GitHub rejected the update (${put.status}). ${t.slice(0,300)}`);
+ }
+ const result=await put.json();
+ githubSha=result.content?.sha||githubSha;
+ // Reload the workbook from the returned local representation so future saves include all sheets.
+ workbook=makeWorkbookFromCases();
+}
+
+function renderAll(){renderDashboard();renderCases();renderAttention();renderFinance();renderSettings();}
+function renderDashboard(){
+ const total=cases.reduce((s,c)=>s+amount(c," Total Amount "),0),p=cases.reduce((s,c)=>s+paid(c),0),out=cases.reduce((s,c)=>s+outstanding(c),0);
+ document.getElementById("mCases").textContent=cases.length;
+ document.getElementById("mCredit").textContent=money(total);
+ document.getElementById("mPaid").textContent=money(p);
+ document.getElementById("mOutstanding").textContent=money(out);
+ document.getElementById("mDispatch").textContent=cases.filter(c=>!String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT")).length;
+ document.getElementById("mSent").textContent=cases.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT")).length;
+ document.getElementById("mPending").textContent=cases.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED").length;
+ document.getElementById("mAttention").textContent=getAttention().length;
+ const counts={};cases.forEach(c=>{const s=status(c);counts[s]=(counts[s]||0)+1});
+ const pipeline=[["CR Pending Dispatch","amber"],["Sent to Finance","blue"],["Finance Processing","amber"],["Payment Pending","red"],["Completed","green"]];
+ document.getElementById("pipeline").innerHTML=pipeline.map(([s])=>`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${s}</span><b>${counts[s]||0}</b></div><div class="progress"><span style="width:${cases.length?((counts[s]||0)/cases.length*100):0}%"></span></div></div>`).join("");
+ const att=getAttention().slice(0,5);
+ document.getElementById("dashAttention").innerHTML=att.length?att.map(a=>`<div class="alert"><b>${esc(rowVal(a.c,"Order No"))}</b> — ${esc(a.issue)}<br><small>${esc(rowVal(a.c,"Name"))} • ${a.days} day(s)</small></div>`).join(""):`<div class="empty">No attention items.</div>`;
+ document.getElementById("recentBody").innerHTML=cases.slice(-8).reverse().map(c=>`<tr><td>${esc(rowVal(c,"Order No"))}<br><small>${esc(rowVal(c,"Serial No"))}</small></td><td>${esc(rowVal(c,"Name"))}</td><td>${esc(rowVal(c,"Category"))}</td><td>${esc(rowVal(c,"FINANCE COMPANY"))}</td><td>${badge(status(c))}</td><td>${badge(rowVal(c,"PAYMENT STATUS"))}</td><td><button class="btn small" onclick="openCaseModal('${esc(c.__id)}')">Edit</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No cases.</td></tr>`;
+}
+function getAttention(){
+ const arr=[];
+ cases.forEach(c=>{
+   const s=String(rowVal(c,"CR STATUS")).toUpperCase();
+   const p=String(rowVal(c,"PAYMENT STATUS")).toUpperCase();
+   const due=toDateInput(rowVal(c,"Due Date"));
+   if(!s.includes("SENT"))arr.push({c,issue:"CR not dispatched",days:Math.max(0,Number(rowVal(c,"Arrears Days As@ 2026.08.03")||0)),type:"CR not dispatched"});
+   if(/CORRECTION/.test(s))arr.push({c,issue:"Correction required",days:Math.max(0,Number(rowVal(c,"Arrears Days As@ 2026.08.03")||0)),type:"Correction required"});
+   if(p!=="SETTLED"&&due&&new Date(due)<new Date())arr.push({c,issue:"Payment overdue / not settled",days:daysSince(due),type:"Payment overdue"});
+ });
+ return arr;
+}
+function renderCases(){
+ const q=(document.getElementById("caseSearch").value||"").toLowerCase(),st=document.getElementById("caseStatus").value,fi=document.getElementById("caseFinance").value;
+ const rows=cases.filter(c=>{
+   const hay=[rowVal(c,"Order No"),rowVal(c,"Name"),rowVal(c,"Serial No"),rowVal(c,"CR STATUS"),rowVal(c,"Branch Name")].join(" ").toLowerCase();
+   return (!q||hay.includes(q))&&(!st||status(c)===st)&&(!fi||rowVal(c,"FINANCE COMPANY")===fi);
+ });
+ document.getElementById("casesBody").innerHTML=rows.map(c=>`<tr><td><b>${esc(rowVal(c,"Order No"))}</b><br><small>${esc(rowVal(c,"Serial No"))}</small></td><td>${esc(rowVal(c,"Name"))}<br><small>${esc(rowVal(c,"Branch Name"))}</small></td><td>${esc(rowVal(c,"Category"))}</td><td>${esc(rowVal(c,"FINANCE COMPANY"))}</td><td>${esc(rowVal(c,"CR STATUS"))}</td><td>${money(rowVal(c," Total Amount "))}</td><td>${badge(status(c))}</td><td>${esc(rowVal(c,"Arrears Days As@ 2026.08.03"))} day(s)</td><td><button class="btn small" onclick="openCaseModal('${esc(c.__id)}')">Edit</button></td></tr>`).join("")||`<tr><td colspan="9" class="empty">No matching cases.</td></tr>`;
+}
+function renderAttention(){
+ const q=(document.getElementById("attentionSearch").value||"").toLowerCase(),t=document.getElementById("attentionType").value;
+ const rows=getAttention().filter(a=>(!q||[rowVal(a.c,"Order No"),rowVal(a.c,"Name"),rowVal(a.c,"Serial No"),a.issue].join(" ").toLowerCase().includes(q))&&(!t||a.type===t));
+ document.getElementById("attentionBody").innerHTML=rows.map(a=>`<tr><td>${esc(rowVal(a.c,"Order No"))}<br><small>${esc(rowVal(a.c,"Serial No"))}</small></td><td>${esc(rowVal(a.c,"Name"))}</td><td>${badge(a.issue)}</td><td>${a.days}</td><td>${esc(rowVal(a.c,"FINANCE COMPANY"))}</td><td><button class="btn small" onclick="openCaseModal('${esc(a.c.__id)}')">Edit</button></td></tr>`).join("")||`<tr><td colspan="6" class="empty">No attention items.</td></tr>`;
+}
+function renderFinance(){
+ const names=[...new Set(cases.map(c=>rowVal(c,"FINANCE COMPANY")).filter(Boolean))];
+ document.getElementById("financeCards").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),o=cs.reduce((s,c)=>s+outstanding(c),0);return `<div class="card"><div class="label">${esc(n)}</div><div class="metric">${cs.length}</div><div class="label">cases • ${money(o)} outstanding</div></div>`}).join("")||`<div class="card"><div class="empty">No finance companies.</div></div>`;
+ document.getElementById("financeBody").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),credit=cs.reduce((s,c)=>s+amount(c," Total Amount "),0),p=cs.reduce((s,c)=>s+paid(c),0);return `<tr><td><b>${esc(n)}</b></td><td>${cs.length}</td><td>${money(credit)}</td><td>${cs.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT")).length}</td><td>${cs.filter(c=>/PROCESSING|CORRECTION/i.test(rowVal(c,"CR STATUS"))).length}</td><td>${cs.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED").length}</td><td>${money(p)}</td><td>${money(credit-p)}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">No data.</td></tr>`;
+}
+function populateFinanceFilters(){
+ const names=[...new Set(cases.map(c=>rowVal(c,"FINANCE COMPANY")).filter(Boolean))];
+ document.getElementById("caseFinance").innerHTML='<option value="">All Finance Companies</option>'+names.map(n=>`<option>${esc(n)}</option>`).join("");
+}
+function renderSettings(){
+ document.getElementById("settingCases").textContent=cases.length;
+ document.getElementById("settingFinance").textContent=new Set(cases.map(c=>rowVal(c,"FINANCE COMPANY")).filter(Boolean)).size;
+}
+function setPage(page){
+ document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+ document.getElementById(page).classList.add("active");
+ document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("active",x.dataset.page===page));
+ const titles={dashboard:["Dashboard","Track credit sales, CR movement, finance processing and payments."],cases:["Credit Sale Cases","Edit existing records directly in the Excel file."],attention:["Attention Required","Cases that need follow-up."],finance:["Finance Companies","Monitor submissions, processing and payment."],reports:["Reports","Generate operational reports."],settings:["Settings","GitHub and Excel connection settings."]};
+ document.getElementById("pageTitle").textContent=titles[page][0];
+ document.getElementById("pageSub").textContent=titles[page][1];
+}
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>setPage(b.dataset.page));
+
+function generateReport(){
+ const type=document.getElementById("reportType").value;
+ let rows=cases;
+ if(type==="cr")rows=cases.filter(c=>rowVal(c,"CR STATUS"));
+ if(type==="finance")rows=cases.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT"));
+ if(type==="payment")rows=cases.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED");
+ if(type==="outstanding")rows=cases.filter(c=>outstanding(c)>0);
+ if(type==="aging")rows=cases.filter(c=>Number(rowVal(c,"Arrears Days As@ 2026.08.03")||0)>0).sort((a,b)=>Number(rowVal(b,"Arrears Days As@ 2026.08.03")||0)-Number(rowVal(a,"Arrears Days As@ 2026.08.03")||0));
+ if(type==="notification")rows=cases;
+ document.getElementById("reportOutput").innerHTML=`<div class="notice"><b>${rows.length}</b> case(s) in this report.</div><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Serial</th><th>Finance</th><th>CR Status</th><th>Payment</th><th>Outstanding</th><th>Arrears</th></tr></thead><tbody>${rows.map(c=>`<tr><td>${esc(rowVal(c,"Order No"))}</td><td>${esc(rowVal(c,"Name"))}</td><td>${esc(rowVal(c,"Serial No"))}</td><td>${esc(rowVal(c,"FINANCE COMPANY"))}</td><td>${esc(rowVal(c,"CR STATUS"))}</td><td>${badge(rowVal(c,"PAYMENT STATUS"))}</td><td>${money(outstanding(c))}</td><td>${esc(rowVal(c,"Arrears Days As@ 2026.08.03"))}</td></tr>`).join("")||`<tr><td colspan="8" class="empty">No records.</td></tr>`}</tbody></table></div>`;
+}
+function printReport(){const x=document.getElementById("reportOutput").innerHTML;if(!x)return;const w=window.open("","_blank");w.document.write(`<html><head><title>Debtor Management Report</title><style>body{font-family:Arial;padding:25px}table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #ddd;text-align:left}th{background:#eee}</style></head><body><h2>Debtor Management Report</h2>${x}</body></html>`);w.document.close();w.print();}
+
+async function reloadExcel(){await loadExcel();}
+window.addEventListener("load",()=>{
+ document.getElementById("ghOwner").value=localStorage.getItem("ghOwner")||DEFAULT_OWNER;
+ document.getElementById("ghRepo").value=localStorage.getItem("ghRepo")||"";
+ document.getElementById("ghBranch").value=localStorage.getItem("ghBranch")||DEFAULT_BRANCH;
+ document.getElementById("ghPath").value=localStorage.getItem("ghPath")||DEFAULT_PATH;
+ ["ghOwner","ghRepo","ghBranch","ghPath"].forEach(id=>document.getElementById(id).addEventListener("change",()=>{
+   const v=document.getElementById(id).value;
+   localStorage.setItem(id.replace("gh","gh"),v);
+ }));
+ loadExcel();
+});
+</script>
+</body>
+</html>
