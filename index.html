@@ -210,20 +210,32 @@ function status(c){
  const s=String(rowVal(c,"CR STATUS")).trim().toUpperCase();
  const p=String(rowVal(c,"PAYMENT STATUS")).trim().toUpperCase();
 
- // A settled payment is completed.
- if(p==="SETTLED" || p==="PAID" || p==="PAYMENT RECEIVED") return "Completed";
+ // Final state: once payment is settled/paid, the case is completed.
+ if(/SETTLED|PAID|PAYMENT RECEIVED/.test(p)) return "Completed";
 
- // CR correction cases remain in Finance Processing.
- if(/CORRECTION/.test(s)) return "Finance Processing";
-
- // Once the CR has been sent/received by finance, an unpaid case is
- // Payment Pending rather than Sent to Finance.
- if(/SFL|FINANCE|SENT/.test(s)){
-   return "Payment Pending";
- }
+ // Correction and explicit finance-processing cases take priority.
+ if(/CORRECTION|PROCESSING/.test(s)) return "Finance Processing";
 
  // CR is still waiting to be dispatched/received.
- if(/SHOP|PENDING|NOT RECEIVE|RECEIVE/.test(s)) return "CR Pending Dispatch";
+ if(/SHOP|PENDING|NOT RECEIVE|RECEIVE/.test(s) && !/SENT|SFL|FINANCE/.test(s)){
+   return "CR Pending Dispatch";
+ }
+
+ // A sent/finance case becomes Payment Pending only when the payment
+ // itself is explicitly pending/overdue/not settled. Otherwise it remains
+ // in the Sent to Finance stage.
+ if(/SFL|FINANCE|SENT/.test(s)){
+   if(/PENDING|OVERDUE|NOT SETTLED|NOT RECEIVED|UNPAID|DUE/.test(p)){
+     return "Payment Pending";
+   }
+   return "Sent to Finance";
+ }
+
+ // Payment status can also identify a payment-pending case when the
+ // CR status does not contain a more specific workflow stage.
+ if(/PENDING|OVERDUE|NOT SETTLED|NOT RECEIVED|UNPAID|DUE/.test(p)){
+   return "Payment Pending";
+ }
 
  return s || "Unknown";
 }
@@ -407,9 +419,11 @@ function renderDashboard(){
  document.getElementById("mCredit").textContent=money(total);
  document.getElementById("mPaid").textContent=money(p);
  document.getElementById("mOutstanding").textContent=money(out);
- document.getElementById("mDispatch").textContent=cases.filter(c=>!String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT")).length;
- document.getElementById("mSent").textContent=cases.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT")).length;
- document.getElementById("mPending").textContent=cases.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED").length;
+ // Use the same workflow status for the KPI cards and the pipeline.
+ // This prevents one case from being counted in multiple workflow stages.
+ document.getElementById("mDispatch").textContent=cases.filter(c=>status(c)==="CR Pending Dispatch").length;
+ document.getElementById("mSent").textContent=cases.filter(c=>status(c)==="Sent to Finance").length;
+ document.getElementById("mPending").textContent=cases.filter(c=>status(c)==="Payment Pending").length;
  document.getElementById("mAttention").textContent=getAttention().length;
  const counts={};cases.forEach(c=>{const s=status(c);counts[s]=(counts[s]||0)+1});
  const pipeline=[["CR Pending Dispatch","amber"],["Sent to Finance","blue"],["Finance Processing","amber"],["Payment Pending","red"],["Completed","green"]];
@@ -446,7 +460,7 @@ function renderAttention(){
 function renderFinance(){
  const names=[...new Set(cases.map(c=>rowVal(c,"FINANCE COMPANY")).filter(Boolean))];
  document.getElementById("financeCards").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),o=cs.reduce((s,c)=>s+outstanding(c),0);return `<div class="card"><div class="label">${esc(n)}</div><div class="metric">${cs.length}</div><div class="label">cases • ${money(o)} outstanding</div></div>`}).join("")||`<div class="card"><div class="empty">No finance companies.</div></div>`;
- document.getElementById("financeBody").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),credit=cs.reduce((s,c)=>s+amount(c," Total Amount "),0),p=cs.reduce((s,c)=>s+paid(c),0);return `<tr><td><b>${esc(n)}</b></td><td>${cs.length}</td><td>${money(credit)}</td><td>${cs.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT")).length}</td><td>${cs.filter(c=>/PROCESSING|CORRECTION/i.test(rowVal(c,"CR STATUS"))).length}</td><td>${cs.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED").length}</td><td>${money(p)}</td><td>${money(credit-p)}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">No data.</td></tr>`;
+ document.getElementById("financeBody").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),credit=cs.reduce((s,c)=>s+amount(c," Total Amount "),0),p=cs.reduce((s,c)=>s+paid(c),0);return `<tr><td><b>${esc(n)}</b></td><td>${cs.length}</td><td>${money(credit)}</td><td>${cs.filter(c=>status(c)==="Sent to Finance").length}</td><td>${cs.filter(c=>status(c)==="Finance Processing").length}</td><td>${cs.filter(c=>status(c)==="Payment Pending").length}</td><td>${money(p)}</td><td>${money(credit-p)}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">No data.</td></tr>`;
 }
 function populateFinanceFilters(){
  const names=[...new Set(cases.map(c=>rowVal(c,"FINANCE COMPANY")).filter(Boolean))];
@@ -470,8 +484,8 @@ function generateReport(){
  const type=document.getElementById("reportType").value;
  let rows=cases;
  if(type==="cr")rows=cases.filter(c=>rowVal(c,"CR STATUS"));
- if(type==="finance")rows=cases.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT"));
- if(type==="payment")rows=cases.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED");
+ if(type==="finance")rows=cases.filter(c=>status(c)==="Sent to Finance");
+ if(type==="payment")rows=cases.filter(c=>status(c)==="Payment Pending");
  if(type==="outstanding")rows=cases.filter(c=>outstanding(c)>0);
  if(type==="aging")rows=cases.filter(c=>Number(rowVal(c,"Arrears Days As@ 2026.08.03")||0)>0).sort((a,b)=>Number(rowVal(b,"Arrears Days As@ 2026.08.03")||0)-Number(rowVal(a,"Arrears Days As@ 2026.08.03")||0));
  if(type==="notification")rows=cases;
