@@ -210,32 +210,20 @@ function status(c){
  const s=String(rowVal(c,"CR STATUS")).trim().toUpperCase();
  const p=String(rowVal(c,"PAYMENT STATUS")).trim().toUpperCase();
 
- // Final state: once payment is settled/paid, the case is completed.
- if(/SETTLED|PAID|PAYMENT RECEIVED/.test(p)) return "Completed";
+ // A settled payment is completed.
+ if(p==="SETTLED" || p==="PAID" || p==="PAYMENT RECEIVED") return "Completed";
 
- // Correction and explicit finance-processing cases take priority.
- if(/CORRECTION|PROCESSING/.test(s)) return "Finance Processing";
+ // CR correction cases remain in Finance Processing.
+ if(/CORRECTION/.test(s)) return "Finance Processing";
 
- // CR is still waiting to be dispatched/received.
- if(/SHOP|PENDING|NOT RECEIVE|RECEIVE/.test(s) && !/SENT|SFL|FINANCE/.test(s)){
-   return "CR Pending Dispatch";
- }
-
- // A sent/finance case becomes Payment Pending only when the payment
- // itself is explicitly pending/overdue/not settled. Otherwise it remains
- // in the Sent to Finance stage.
+ // Once the CR has been sent/received by finance, an unpaid case is
+ // Payment Pending rather than Sent to Finance.
  if(/SFL|FINANCE|SENT/.test(s)){
-   if(/PENDING|OVERDUE|NOT SETTLED|NOT RECEIVED|UNPAID|DUE/.test(p)){
-     return "Payment Pending";
-   }
-   return "Sent to Finance";
- }
-
- // Payment status can also identify a payment-pending case when the
- // CR status does not contain a more specific workflow stage.
- if(/PENDING|OVERDUE|NOT SETTLED|NOT RECEIVED|UNPAID|DUE/.test(p)){
    return "Payment Pending";
  }
+
+ // CR is still waiting to be dispatched/received.
+ if(/SHOP|PENDING|NOT RECEIVE|RECEIVE/.test(s)) return "CR Pending Dispatch";
 
  return s || "Unknown";
 }
@@ -414,36 +402,71 @@ async function updateExcelOnGitHub(changedCase){
 
 function renderAll(){renderDashboard();renderCases();renderAttention();renderFinance();renderSettings();}
 function renderDashboard(){
- const total=cases.reduce((s,c)=>s+amount(c," Total Amount "),0),p=cases.reduce((s,c)=>s+paid(c),0),out=cases.reduce((s,c)=>s+outstanding(c),0);
- document.getElementById("mCases").textContent=cases.length;
- document.getElementById("mCredit").textContent=money(total);
- document.getElementById("mPaid").textContent=money(p);
- document.getElementById("mOutstanding").textContent=money(out);
+  const total=cases.reduce((s,c)=>s+amount(c," Total Amount "),0),
+        p=cases.reduce((s,c)=>s+paid(c),0),
+        out=cases.reduce((s,c)=>s+outstanding(c),0);
 
- // SINGLE SOURCE OF TRUTH: calculate workflow stages once, then use these
- // exact same counts for both the KPI cards and the pipeline.
- const counts={
-   "CR Pending Dispatch":0,
-   "Sent to Finance":0,
-   "Finance Processing":0,
-   "Payment Pending":0,
-   "Completed":0
- };
- cases.forEach(c=>{
-   const s=status(c);
-   if(Object.prototype.hasOwnProperty.call(counts,s)) counts[s]++;
- });
+  document.getElementById("mCases").textContent=cases.length;
+  document.getElementById("mCredit").textContent=money(total);
+  document.getElementById("mPaid").textContent=money(p);
+  document.getElementById("mOutstanding").textContent=money(out);
 
- document.getElementById("mDispatch").textContent=counts["CR Pending Dispatch"];
- document.getElementById("mSent").textContent=counts["Sent to Finance"];
- document.getElementById("mPending").textContent=counts["Payment Pending"];
- document.getElementById("mAttention").textContent=getAttention().length;
+  // SINGLE SOURCE OF TRUTH:
+  // Calculate the workflow stage once using status(c).
+  // The KPI cards and pipeline both use these exact same counts.
+  const counts={
+    "CR Pending Dispatch":0,
+    "Sent to Finance":0,
+    "Finance Processing":0,
+    "Payment Pending":0,
+    "Completed":0
+  };
 
- const pipeline=[["CR Pending Dispatch","amber"],["Sent to Finance","blue"],["Finance Processing","amber"],["Payment Pending","red"],["Completed","green"]];
- document.getElementById("pipeline").innerHTML=pipeline.map(([s])=>`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${s}</span><b>${counts[s]}</b></div><div class="progress"><span style="width:${cases.length?(counts[s]/cases.length*100):0}%"></span></div></div>`).join("");
- const att=getAttention().slice(0,5);
- document.getElementById("dashAttention").innerHTML=att.length?att.map(a=>`<div class="alert"><b>${esc(rowVal(a.c,"Order No"))}</b> — ${esc(a.issue)}<br><small>${esc(rowVal(a.c,"Name"))} • ${a.days} day(s)</small></div>`).join(""):`<div class="empty">No attention items.</div>`;
- document.getElementById("recentBody").innerHTML=cases.slice(-8).reverse().map(c=>`<tr><td>${esc(rowVal(c,"Order No"))}<br><small>${esc(rowVal(c,"Serial No"))}</small></td><td>${esc(rowVal(c,"Name"))}</td><td>${esc(rowVal(c,"Category"))}</td><td>${esc(rowVal(c,"FINANCE COMPANY"))}</td><td>${badge(status(c))}</td><td>${badge(rowVal(c,"PAYMENT STATUS"))}</td><td><button class="btn small" onclick="openCaseModal('${esc(c.__id)}')">Edit</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No cases.</td></tr>`;
+  cases.forEach(c=>{
+    const s=status(c);
+    if(Object.prototype.hasOwnProperty.call(counts,s)) counts[s]++;
+  });
+
+  document.getElementById("mDispatch").textContent=counts["CR Pending Dispatch"];
+  document.getElementById("mSent").textContent=counts["Sent to Finance"];
+  document.getElementById("mPending").textContent=counts["Payment Pending"];
+  document.getElementById("mAttention").textContent=getAttention().length;
+
+  const pipeline=[
+    ["CR Pending Dispatch","amber"],
+    ["Sent to Finance","blue"],
+    ["Finance Processing","amber"],
+    ["Payment Pending","red"],
+    ["Completed","green"]
+  ];
+
+  document.getElementById("pipeline").innerHTML=pipeline.map(([s])=>
+    `<div style="margin:12px 0">
+      <div style="display:flex;justify-content:space-between;font-size:13px">
+        <span>${s}</span><b>${counts[s]}</b>
+      </div>
+      <div class="progress">
+        <span style="width:${cases.length?(counts[s]/cases.length*100):0}%"></span>
+      </div>
+    </div>`
+  ).join("");
+
+  const att=getAttention().slice(0,5);
+  document.getElementById("dashAttention").innerHTML=att.length?
+    att.map(a=>`<div class="alert"><b>${esc(rowVal(a.c,"Order No"))}</b> — ${esc(a.issue)}<br><small>${esc(rowVal(a.c,"Name"))} • ${a.days} day(s)</small></div>`).join(""):
+    `<div class="empty">No attention items.</div>`;
+
+  document.getElementById("recentBody").innerHTML=cases.slice(-8).reverse().map(c=>
+    `<tr>
+      <td>${esc(rowVal(c,"Order No"))}<br><small>${esc(rowVal(c,"Serial No"))}</small></td>
+      <td>${esc(rowVal(c,"Name"))}</td>
+      <td>${esc(rowVal(c,"Category"))}</td>
+      <td>${esc(rowVal(c,"FINANCE COMPANY"))}</td>
+      <td>${badge(status(c))}</td>
+      <td>${badge(rowVal(c,"PAYMENT STATUS"))}</td>
+      <td><button class="btn small" onclick="openCaseModal('${esc(c.__id)}')">Edit</button></td>
+    </tr>`
+  ).join("") || `<tr><td colspan="7" class="empty">No cases.</td></tr>`;
 }
 function getAttention(){
  const arr=[];
@@ -473,7 +496,7 @@ function renderAttention(){
 function renderFinance(){
  const names=[...new Set(cases.map(c=>rowVal(c,"FINANCE COMPANY")).filter(Boolean))];
  document.getElementById("financeCards").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),o=cs.reduce((s,c)=>s+outstanding(c),0);return `<div class="card"><div class="label">${esc(n)}</div><div class="metric">${cs.length}</div><div class="label">cases • ${money(o)} outstanding</div></div>`}).join("")||`<div class="card"><div class="empty">No finance companies.</div></div>`;
- document.getElementById("financeBody").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),credit=cs.reduce((s,c)=>s+amount(c," Total Amount "),0),p=cs.reduce((s,c)=>s+paid(c),0);return `<tr><td><b>${esc(n)}</b></td><td>${cs.length}</td><td>${money(credit)}</td><td>${cs.filter(c=>status(c)==="Sent to Finance").length}</td><td>${cs.filter(c=>status(c)==="Finance Processing").length}</td><td>${cs.filter(c=>status(c)==="Payment Pending").length}</td><td>${money(p)}</td><td>${money(credit-p)}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">No data.</td></tr>`;
+ document.getElementById("financeBody").innerHTML=names.map(n=>{const cs=cases.filter(c=>rowVal(c,"FINANCE COMPANY")===n),credit=cs.reduce((s,c)=>s+amount(c," Total Amount "),0),p=cs.reduce((s,c)=>s+paid(c),0);return `<tr><td><b>${esc(n)}</b></td><td>${cs.length}</td><td>${money(credit)}</td><td>${cs.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT")).length}</td><td>${cs.filter(c=>/PROCESSING|CORRECTION/i.test(rowVal(c,"CR STATUS"))).length}</td><td>${cs.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED").length}</td><td>${money(p)}</td><td>${money(credit-p)}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">No data.</td></tr>`;
 }
 function populateFinanceFilters(){
  const names=[...new Set(cases.map(c=>rowVal(c,"FINANCE COMPANY")).filter(Boolean))];
@@ -497,8 +520,8 @@ function generateReport(){
  const type=document.getElementById("reportType").value;
  let rows=cases;
  if(type==="cr")rows=cases.filter(c=>rowVal(c,"CR STATUS"));
- if(type==="finance")rows=cases.filter(c=>status(c)==="Sent to Finance");
- if(type==="payment")rows=cases.filter(c=>status(c)==="Payment Pending");
+ if(type==="finance")rows=cases.filter(c=>String(rowVal(c,"CR STATUS")).toUpperCase().includes("SENT"));
+ if(type==="payment")rows=cases.filter(c=>String(rowVal(c,"PAYMENT STATUS")).toUpperCase()!=="SETTLED");
  if(type==="outstanding")rows=cases.filter(c=>outstanding(c)>0);
  if(type==="aging")rows=cases.filter(c=>Number(rowVal(c,"Arrears Days As@ 2026.08.03")||0)>0).sort((a,b)=>Number(rowVal(b,"Arrears Days As@ 2026.08.03")||0)-Number(rowVal(a,"Arrears Days As@ 2026.08.03")||0));
  if(type==="notification")rows=cases;
