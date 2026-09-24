@@ -209,10 +209,22 @@ function rowVal(c,name){return c[name] ?? c[name.trim()] ?? "";}
 function status(c){
  const s=String(rowVal(c,"CR STATUS")).trim().toUpperCase();
  const p=String(rowVal(c,"PAYMENT STATUS")).trim().toUpperCase();
- if(p==="SETTLED") return "Completed";
+
+ // A settled payment is completed.
+ if(p==="SETTLED" || p==="PAID" || p==="PAYMENT RECEIVED") return "Completed";
+
+ // CR correction cases remain in Finance Processing.
  if(/CORRECTION/.test(s)) return "Finance Processing";
- if(/SFL|FINANCE/.test(s)) return "Sent to Finance";
+
+ // Once the CR has been sent/received by finance, an unpaid case is
+ // Payment Pending rather than Sent to Finance.
+ if(/SFL|FINANCE|SENT/.test(s)){
+   return "Payment Pending";
+ }
+
+ // CR is still waiting to be dispatched/received.
  if(/SHOP|PENDING|NOT RECEIVE|RECEIVE/.test(s)) return "CR Pending Dispatch";
+
  return s || "Unknown";
 }
 function badge(s){
